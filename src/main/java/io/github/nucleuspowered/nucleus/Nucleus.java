@@ -114,7 +114,7 @@ public class Nucleus {
             Files.createDirectories(this.configDir);
             Files.createDirectories(dataDir);
             commandsConfig = new CommandsConfig(Paths.get(configDir.toString(), "commands.conf"));
-            generalDataStore = new GeneralDataStore(Paths.get(dataDir.toString(), "general.json"));
+            generalDataStore = new GeneralDataStore(this, Paths.get(dataDir.toString(), "general.json"));
 
             DataProviders d = new DataProviders(this);
             userDataManager = new UserDataManager(this, d::getUserFileDataProviders);

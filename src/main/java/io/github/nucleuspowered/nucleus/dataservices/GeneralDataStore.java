@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import io.github.nucleuspowered.nucleus.Nucleus;
 import io.github.nucleuspowered.nucleus.Util;
 import io.github.nucleuspowered.nucleus.api.data.Kit;
 import io.github.nucleuspowered.nucleus.api.data.LocationData;
@@ -36,10 +37,13 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 public class GeneralDataStore extends AbstractSerialisableClassConfig<GeneralDataNode, ConfigurationNode, ConfigurationLoader<ConfigurationNode>> {
+
+    private final Nucleus plugin;
 
     private final BiFunction<String, LocationNode, LocationData> getLocationData = (s, l) -> {
         try {
@@ -57,8 +61,9 @@ public class GeneralDataStore extends AbstractSerialisableClassConfig<GeneralDat
         }
     };
 
-    public GeneralDataStore(Path file) throws Exception {
+    public GeneralDataStore(Nucleus plugin, Path file) throws Exception {
         super(file, TypeToken.of(GeneralDataNode.class), GeneralDataNode::new, false);
+        this.plugin = plugin;
     }
 
     @Override
@@ -147,10 +152,12 @@ public class GeneralDataStore extends AbstractSerialisableClassConfig<GeneralDat
     }
 
     public Optional<WarpData> getWarpLocation(String name) {
+        removeInvalidWarps();
         return getLocation(name, data.getWarps(), getWarpLocation);
     }
 
     public Map<String, WarpData> getWarps() {
+        removeInvalidWarps();
         return getLocations(data.getWarps(), getWarpLocation);
     }
 
@@ -187,6 +194,18 @@ public class GeneralDataStore extends AbstractSerialisableClassConfig<GeneralDat
 
         return false;
     }
+
+    private synchronized void removeInvalidWarps() {
+        Map<String, WarpNode> msl = data.getWarps();
+        Set<String> s = msl.entrySet().stream().filter(x -> x.getValue() == null).map(Map.Entry::getKey).collect(Collectors.toSet());
+        if (!s.isEmpty()) {
+            s.forEach(x -> {
+                plugin.getLogger().warn(Util.getMessageWithFormat("general.warps.invalidremove", x));
+                msl.remove(x);
+            });
+        }
+    }
+
 
     public Optional<Transform<World>> getFirstSpawn() {
         Optional<LocationNode> ln = data.getFirstSpawnLocation();

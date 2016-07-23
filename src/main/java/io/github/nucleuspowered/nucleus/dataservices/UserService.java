@@ -37,10 +37,7 @@ import uk.co.drnaylor.quickstart.exceptions.IncorrectAdapterTypeException;
 import uk.co.drnaylor.quickstart.exceptions.NoModuleException;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -50,6 +47,7 @@ public class UserService extends Service<UserDataNode>
     private final Nucleus plugin;
     private final User user;
     private final Instant serviceLoadTime = Instant.now();
+    private final Object userLockingObject = new Object();
 
     // Use to keep hold of whether this is the first time on the server for a player.
     private boolean firstPlay = false;
@@ -156,6 +154,7 @@ public class UserService extends Service<UserDataNode>
             return Optional.empty();
         }
 
+        removeInvalidHomes();
         LocationNode ln = Util.getValueIgnoreCase(data.getHomeData(), home).orElse(null);
         if (ln != null) {
             try {
@@ -174,6 +173,7 @@ public class UserService extends Service<UserDataNode>
             return Maps.newHashMap();
         }
 
+        removeInvalidHomes();
         return data.getHomeData().entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, x -> {
                     try {
@@ -210,6 +210,7 @@ public class UserService extends Service<UserDataNode>
             return false;
         }
 
+        removeInvalidHomes();
         Optional<String> os = Util.getKeyIgnoreCase(data.getHomeData(), home);
         if (os.isPresent()) {
             homeData.remove(os.get());
@@ -218,6 +219,19 @@ public class UserService extends Service<UserDataNode>
         }
 
         return false;
+    }
+
+    private void removeInvalidHomes() {
+        synchronized (userLockingObject) {
+            Map<String, LocationNode> msl = data.getHomeData();
+            Set<String> s = msl.entrySet().stream().filter(x -> x.getValue() == null).map(Map.Entry::getKey).collect(Collectors.toSet());
+            if (!s.isEmpty()) {
+                s.forEach(x -> {
+                    plugin.getLogger().warn(Util.getMessageWithFormat("user.homes.invalidremove", x, user.getName()));
+                    msl.remove(x);
+                });
+            }
+        }
     }
 
     @Override
